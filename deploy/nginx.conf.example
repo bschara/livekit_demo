@@ -1,0 +1,50 @@
+# Copy to /etc/nginx/sites-available/livekit-demo, symlink into sites-enabled,
+# replace APP_DOMAIN and LIVEKIT_DOMAIN below, then run:
+#   sudo certbot --nginx -d APP_DOMAIN -d LIVEKIT_DOMAIN
+# certbot rewrites these blocks in place to add the TLS (443) config — run it
+# AFTER this file is in place, not before.
+#
+# No real domain? Use sslip.io: if your VPS IP is 203.0.113.5, use
+# app-203-0-113-5.sslip.io and livekit-203-0-113-5.sslip.io — no DNS setup
+# needed, they resolve to that IP automatically.
+
+# Frontend (static build) + Django API
+server {
+    listen 80;
+    server_name APP_DOMAIN;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /admin/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    root /opt/livekit-demo/frontend/dist;
+    location / {
+        try_files $uri /index.html;
+    }
+}
+
+# LiveKit signaling (WebSocket) — separate (sub)domain so it gets its own TLS cert.
+# Only the signaling connection is proxied here; RTC media (7881/tcp,
+# 50000-60000/udp) still needs to be reachable directly, not through nginx.
+server {
+    listen 80;
+    server_name LIVEKIT_DOMAIN;
+
+    location / {
+        proxy_pass http://127.0.0.1:7880;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
