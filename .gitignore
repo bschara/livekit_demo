@@ -1,0 +1,32 @@
+# Python (backend)
+venv/
+__pycache__/
+*.pyc
+db.sqlite3
+backend/.env
+
+# Node (frontend)
+node_modules/
+dist/
+dist-ssr/
+*.local
+frontend/.env
+
+# Env files (any location)
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.swp
+
+# Claude Code local settings (transient, machine-specific)
+.claude/
+
+# Local-only notes / docs, not for the repo
+DEMO_BOTTLENECKS.txt
+livekit-evaluation.docx

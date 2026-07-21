@@ -1,0 +1,21 @@
+port: 7880
+bind_addresses:
+  - "0.0.0.0"
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  # false for local/same-machine testing: this environment's STUN-discovered
+  # "external" IP is outbound-only (no inbound path back to the container),
+  # so advertising it makes every ICE candidate pair fail. Flip to true only
+  # when the host running docker-compose genuinely has a reachable public IP
+  # (or port-forwarded RTC ports) for remote viewers to reach it directly.
+  use_external_ip: false
+  # Explicit override so other devices on the same LAN (e.g. a phone) get an
+  # ICE candidate they can actually reach — without this, LiveKit falls back
+  # to the Docker bridge's internal IP, which only this host can reach.
+  # Update this if the host's LAN IP changes (check with `hostname -I`).
+  node_ip: 192.168.29.8
+# Keys are intentionally NOT set here — this file is committed to git.
+# LiveKit reads them from the LIVEKIT_KEYS env var instead (see docker-compose.yml),
+# sourced from a root .env file that is gitignored. See .env.example.
