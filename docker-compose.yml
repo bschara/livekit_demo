@@ -4,11 +4,8 @@ services:
     container_name: livekit-server
     command: --config /etc/livekit.yaml
     restart: unless-stopped
+    network_mode: host
     environment:
       - LIVEKIT_KEYS=${LIVEKIT_KEYS}
-    ports:
-      - "7880:7880"        # HTTP/WebSocket signaling + REST API
-      - "7881:7881"        # TCP fallback for RTC (used when UDP is blocked)
-      - "50000-50100:50000-50100/udp"  # RTC media (narrowed range for local dev)
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
