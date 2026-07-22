@@ -14,6 +14,7 @@ jobs:
         working-directory: backend
     env:
       DJANGO_SECRET_KEY: ci-test-only-not-a-real-secret
+      LIVEKIT_API_SECRET: ci-test-only-not-a-real-secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
