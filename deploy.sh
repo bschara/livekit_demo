@@ -6,7 +6,12 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-git pull origin main
+# Hard-reset rather than `git pull`: this checkout is a deploy target, not a
+# place for local edits, so any local drift (e.g. a prior `npm install` here
+# rewriting package-lock.json) should always lose to origin/main rather than
+# blocking the next deploy.
+git fetch origin main
+git reset --hard origin/main
 
 # LiveKit (Docker) — picks up docker-compose.yml/livekit.yaml changes
 docker compose up -d
