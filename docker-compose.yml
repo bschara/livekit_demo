@@ -9,6 +9,12 @@ services:
       - redis
     environment:
       - LIVEKIT_KEYS=${LIVEKIT_KEYS}
+      # Overrides livekit.yaml's rtc.node_ip when set. Leave unset locally
+      # (empty env var doesn't override the file, verified against the
+      # livekit-server binary) so LAN testing keeps using the file's LAN
+      # IP; set on any host that needs to advertise a different address to
+      # clients, e.g. a VPS's public IP so remote browsers can complete ICE.
+      - NODE_IP=${LIVEKIT_NODE_IP:-}
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
 
