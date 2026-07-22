@@ -13,8 +13,15 @@ cd "$(dirname "$0")"
 git fetch origin main
 git reset --hard origin/main
 
-# LiveKit (Docker) — picks up docker-compose.yml/livekit.yaml changes
+# LiveKit (Docker). `up -d` alone only recreates containers whose
+# docker-compose.yml service definition changed — it can't detect edits to
+# livekit.yaml, since that's just a bind-mounted file, not part of the
+# service definition. Without the explicit restart, livekit-server keeps
+# running on whatever config it had in memory from its last start, silently
+# ignoring any livekit.yaml change in this deploy (bit us twice: once with
+# a stale rtc.node_ip, once with a missing redis: block for egress).
 docker compose up -d
+docker compose restart livekit
 
 # Django backend
 cd backend
