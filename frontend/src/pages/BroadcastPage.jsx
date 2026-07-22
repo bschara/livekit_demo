@@ -66,62 +66,64 @@ export default function BroadcastPage() {
 
   return (
     <div className="page">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Broadcasting to "{state?.room}"</h2>
-        <div style={{ display: "flex", gap: 8 }}>
-          {recording && (
-            <span className="badge badge-live">
-              <span className="dot" />
-              Recording
-            </span>
-          )}
-          {status === "live" && (
-            <span className="badge badge-live">
-              <span className="dot" />
-              Live &middot; {participantCount} watching
-            </span>
-          )}
-        </div>
-      </div>
-
-      {error && <div className="error-banner">{error}</div>}
-      {recordingError && <div className="error-banner">{recordingError}</div>}
-
-      <div className="video-tile hero">
-        <video ref={videoRef} autoPlay playsInline muted />
-        <span className="label">{state?.name} (you)</span>
-      </div>
-
-      {guestVideos.length > 0 && (
-        <>
-          <h3 style={{ marginTop: 24 }}>Interacting with you</h3>
-          <div className="viewers-grid">
-            {guestVideos.map((t) => (
-              <VideoTile key={t.sid} track={t.track} label={t.participant.name || t.participant.identity} />
-            ))}
+      <div className="stream-layout">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ margin: 0 }}>Broadcasting to "{state?.room}"</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            {recording && (
+              <span className="badge badge-live">
+                <span className="dot" />
+                Recording
+              </span>
+            )}
+            {status === "live" && (
+              <span className="badge badge-live">
+                <span className="dot" />
+                Live &middot; {participantCount} watching
+              </span>
+            )}
           </div>
-        </>
-      )}
+        </div>
 
-      {audioTracks.map((t) => (
-        <AudioSink key={t.sid} track={t.track} />
-      ))}
+        {error && <div className="error-banner">{error}</div>}
+        {recordingError && <div className="error-banner">{recordingError}</div>}
 
-      <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
-        <button
-          className="btn btn-outline"
-          onClick={toggleRecording}
-          disabled={status !== "live" || recordingBusy}
-        >
-          {recording ? "Stop recording" : "Start recording"}
-        </button>
-        <button className="btn btn-danger" onClick={endStream} disabled={status === "ended"}>
-          End stream
-        </button>
+        <div className="video-tile hero">
+          <video ref={videoRef} autoPlay playsInline muted />
+          <span className="label">{state?.name} (you)</span>
+        </div>
+
+        {audioTracks.map((t) => (
+          <AudioSink key={t.sid} track={t.track} />
+        ))}
+
+        <div className="stream-actions">
+          <button
+            className="btn btn-outline"
+            onClick={toggleRecording}
+            disabled={status !== "live" || recordingBusy}
+          >
+            {recording ? "Stop recording" : "Start recording"}
+          </button>
+          <button className="btn btn-danger" onClick={endStream} disabled={status === "ended"}>
+            End stream
+          </button>
+        </div>
+
+        {status === "connecting" && <p className="muted" style={{ marginTop: 12 }}>Connecting to camera and mic…</p>}
+        {status === "ended" && <p className="muted" style={{ marginTop: 12 }}>Stream ended.</p>}
+
+        {guestVideos.length > 0 && (
+          <>
+            <h3 style={{ marginTop: 24 }}>Interacting with you</h3>
+            <div className="viewers-grid">
+              {guestVideos.map((t) => (
+                <VideoTile key={t.sid} track={t.track} label={t.participant.name || t.participant.identity} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
-
-      {status === "connecting" && <p className="muted" style={{ marginTop: 12 }}>Connecting to camera and mic…</p>}
-      {status === "ended" && <p className="muted" style={{ marginTop: 12 }}>Stream ended.</p>}
     </div>
   );
 }

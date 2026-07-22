@@ -59,66 +59,68 @@ export default function WatchPage() {
 
   return (
     <div className="page">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Watching "{state?.room}"</h2>
-        {isLive ? (
-          <span className="badge badge-live">
-            <span className="dot" />
-            Live &middot; {participantCount} in room
-          </span>
-        ) : (
-          <span className="badge badge-off">Waiting for broadcaster…</span>
+      <div className="stream-layout">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ margin: 0 }}>Watching "{state?.room}"</h2>
+          {isLive ? (
+            <span className="badge badge-live">
+              <span className="dot" />
+              Live &middot; {participantCount} in room
+            </span>
+          ) : (
+            <span className="badge badge-off">Waiting for broadcaster…</span>
+          )}
+        </div>
+
+        {error && <div className="error-banner">{error}</div>}
+
+        {!broadcasterVideo && status === "watching" && (
+          <div className="card muted" style={{ textAlign: "center", padding: 60, marginBottom: 16 }}>
+            You're connected. The stream will appear here as soon as the broadcaster goes live.
+          </div>
+        )}
+
+        {broadcasterVideo && (
+          <VideoTile
+            track={broadcasterVideo.track}
+            label={broadcasterVideo.participant.name || broadcasterVideo.participant.identity}
+            className="hero"
+          />
+        )}
+
+        {audioTracks.map((t) => (
+          <AudioSink key={t.sid} track={t.track} />
+        ))}
+
+        <div className="stream-actions">
+          <button className="btn btn-outline" onClick={toggleCamera} disabled={status !== "watching"}>
+            {camOn ? "Turn off camera" : "Turn on camera"}
+          </button>
+          <button className="btn btn-outline" onClick={toggleMic} disabled={status !== "watching"}>
+            {micOn ? "Turn off mic" : "Turn on mic"}
+          </button>
+          <button className="btn btn-outline" onClick={leave} disabled={status === "ended"}>
+            Leave
+          </button>
+        </div>
+
+        {status === "connecting" && <p className="muted" style={{ marginTop: 12 }}>Connecting…</p>}
+        {status === "ended" && <p className="muted" style={{ marginTop: 12 }}>Stream ended.</p>}
+
+        {(guestVideos.length > 0 || camOn) && (
+          <div className="viewers-grid" style={{ marginTop: 24 }}>
+            {camOn && (
+              <div className="video-tile">
+                <video ref={localVideoRef} autoPlay playsInline muted />
+                <span className="label">{state?.name} (you)</span>
+              </div>
+            )}
+            {guestVideos.map((t) => (
+              <VideoTile key={t.sid} track={t.track} label={t.participant.name || t.participant.identity} />
+            ))}
+          </div>
         )}
       </div>
-
-      {error && <div className="error-banner">{error}</div>}
-
-      {!broadcasterVideo && status === "watching" && (
-        <div className="card muted" style={{ textAlign: "center", padding: 60, marginBottom: 16 }}>
-          You're connected. The stream will appear here as soon as the broadcaster goes live.
-        </div>
-      )}
-
-      {broadcasterVideo && (
-        <VideoTile
-          track={broadcasterVideo.track}
-          label={broadcasterVideo.participant.name || broadcasterVideo.participant.identity}
-          className="hero"
-        />
-      )}
-
-      {(guestVideos.length > 0 || camOn) && (
-        <div className="viewers-grid" style={{ marginTop: 16 }}>
-          {camOn && (
-            <div className="video-tile">
-              <video ref={localVideoRef} autoPlay playsInline muted />
-              <span className="label">{state?.name} (you)</span>
-            </div>
-          )}
-          {guestVideos.map((t) => (
-            <VideoTile key={t.sid} track={t.track} label={t.participant.name || t.participant.identity} />
-          ))}
-        </div>
-      )}
-
-      {audioTracks.map((t) => (
-        <AudioSink key={t.sid} track={t.track} />
-      ))}
-
-      <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
-        <button className="btn btn-outline" onClick={toggleCamera} disabled={status !== "watching"}>
-          {camOn ? "Turn off camera" : "Turn on camera"}
-        </button>
-        <button className="btn btn-outline" onClick={toggleMic} disabled={status !== "watching"}>
-          {micOn ? "Turn off mic" : "Turn on mic"}
-        </button>
-        <button className="btn btn-outline" onClick={leave} disabled={status === "ended"}>
-          Leave
-        </button>
-      </div>
-
-      {status === "connecting" && <p className="muted" style={{ marginTop: 12 }}>Connecting…</p>}
-      {status === "ended" && <p className="muted" style={{ marginTop: 12 }}>Stream ended.</p>}
     </div>
   );
 }

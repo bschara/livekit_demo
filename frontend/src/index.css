@@ -192,6 +192,19 @@ input {
   margin: 0 auto;
 }
 
+.stream-layout {
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.stream-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
 .viewers-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 240px));
