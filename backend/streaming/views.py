@@ -190,7 +190,7 @@ class RecordingStartView(APIView):
                             access_key=settings.MINIO_ACCESS_KEY,
                             secret=settings.MINIO_SECRET_KEY,
                             bucket=settings.MINIO_BUCKET,
-                            endpoint=settings.MINIO_ENDPOINT,
+                            endpoint=settings.MINIO_INTERNAL_ENDPOINT,
                             region=S3_REGION,
                             force_path_style=True,
                         ),

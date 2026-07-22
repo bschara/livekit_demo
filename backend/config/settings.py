@@ -153,7 +153,15 @@ LIVEKIT_WS_URL = os.environ.get('LIVEKIT_WS_URL', 'ws://localhost:7880')
 LIVEKIT_HTTP_URL = LIVEKIT_WS_URL.replace('wss://', 'https://').replace('ws://', 'http://')
 
 # MinIO (self-hosted S3-compatible storage) — where recording egress output lands.
+# Public-facing: used for presigned playback URLs, which the browser must be
+# able to reach directly, so this has to be an address reachable from the
+# internet (e.g. the VPS's public IP), not "localhost".
 MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'http://localhost:9000')
+# Internal: used for egress's own upload. Egress runs on the same host as
+# MinIO, so this should always stay "localhost" — pointing it at a public IP
+# instead makes egress dial back out to the host's own public address, which
+# times out on VPS providers that don't route/allow that hairpin path.
+MINIO_INTERNAL_ENDPOINT = os.environ.get('MINIO_INTERNAL_ENDPOINT', 'http://localhost:9000')
 MINIO_ACCESS_KEY = os.environ.get('MINIO_ACCESS_KEY', 'minioadmin')
 MINIO_SECRET_KEY = os.environ.get('MINIO_SECRET_KEY', '')
 MINIO_BUCKET = os.environ.get('MINIO_BUCKET', 'recordings')
