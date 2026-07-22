@@ -189,11 +189,13 @@ input {
 }
 .video-tile.hero {
   max-width: 720px;
+  margin: 0 auto;
 }
 
 .viewers-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 240px));
+  justify-content: center;
   gap: 16px;
 }
 
