@@ -3,7 +3,7 @@ Description=Gunicorn for LiveKit demo Django backend
 After=network.target docker.service
 
 [Service]
-User=deploy
+User=opc
 WorkingDirectory=/opt/livekit-demo/backend
 EnvironmentFile=/opt/livekit-demo/backend/.env
 ExecStart=/opt/livekit-demo/backend/venv/bin/gunicorn config.wsgi:application --bind 127.0.0.1:8000 --workers 3

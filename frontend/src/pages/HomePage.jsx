@@ -71,7 +71,12 @@ export default function HomePage() {
         </div>
 
         <div style={{ display: "flex", gap: 12 }}>
-          <button className="btn" disabled={!canSubmit} onClick={() => goTo("/broadcast")}>
+          <button
+            className="btn"
+            disabled={!canSubmit || liveInfo?.is_live}
+            onClick={() => goTo("/broadcast")}
+            title={liveInfo?.is_live ? "This room already has an active broadcaster" : undefined}
+          >
             Go live
           </button>
           <button

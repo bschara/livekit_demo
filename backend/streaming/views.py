@@ -29,6 +29,13 @@ class TokenView(APIView):
 
         role = data["role"]
         room = data["room"]
+
+        if role == "broadcaster" and asyncio.run(self._room_has_broadcaster(room)):
+            return Response(
+                {"detail": "This room already has an active broadcaster."},
+                status=409,
+            )
+
         # Suffix the identity so two viewers picking the same display name don't
         # collide (LiveKit requires a unique identity per participant per room).
         identity = f"{BROADCASTER_PREFIX if role == 'broadcaster' else 'viewer-'}{data['name']}-{uuid.uuid4().hex[:6]}"
@@ -58,6 +65,23 @@ class TokenView(APIView):
             }
         )
         return Response(response.data)
+
+    @staticmethod
+    async def _room_has_broadcaster(room_name):
+        async with api.LiveKitAPI(
+            settings.LIVEKIT_HTTP_URL,
+            settings.LIVEKIT_API_KEY,
+            settings.LIVEKIT_API_SECRET,
+        ) as lk:
+            listed = await lk.room.list_rooms(api.ListRoomsRequest(names=[room_name]))
+            if not listed.rooms:
+                return False
+            participants = await lk.room.list_participants(
+                api.ListParticipantsRequest(room=room_name)
+            )
+            return any(
+                p.identity.startswith(BROADCASTER_PREFIX) for p in participants.participants
+            )
 
 
 class RoomListView(APIView):

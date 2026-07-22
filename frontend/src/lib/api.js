@@ -11,7 +11,13 @@ async function request(path, options) {
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${options?.method || "GET"} ${path} failed (${res.status}): ${body}`);
+    let detail;
+    try {
+      detail = JSON.parse(body).detail;
+    } catch {
+      // Not a JSON error body — fall through to the raw text below.
+    }
+    throw new Error(detail || `${options?.method || "GET"} ${path} failed (${res.status}): ${body}`);
   }
   return res.json();
 }
