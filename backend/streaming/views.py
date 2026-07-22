@@ -278,12 +278,17 @@ class LiveKitWebhookView(APIView):
             return
 
         recording.ended_at = timezone.now()
-        if info.file_results:
+        # The event type is "egress_ended" even when the egress failed or was
+        # aborted (e.g. an empty room with nothing to record) — the actual
+        # outcome is in egress_info.status, not the webhook event name.
+        if info.status == api.EgressStatus.EGRESS_COMPLETE and info.file_results:
             file_info = info.file_results[0]
             recording.object_key = file_info.filename
             recording.duration_seconds = file_info.duration / 1e9
             recording.size_bytes = file_info.size
-        recording.status = "ready" if event.event == "egress_ended" else "failed"
+            recording.status = "ready"
+        else:
+            recording.status = "failed"
         recording.save()
 
     @staticmethod

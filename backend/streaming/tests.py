@@ -102,13 +102,19 @@ class LiveKitWebhookTests(APITestCase):
             )
 
     def test_egress_ended_marks_ready(self):
+        from livekit import api as lk_api
+
         Recording.objects.create(
             room="r1", broadcaster_name="Alice", egress_id="EG_1", status="processing"
         )
         file_info = MagicMock(filename="r1/abc.mp4", duration=5_000_000_000, size=12345)
         event = MagicMock(
             event="egress_ended",
-            egress_info=MagicMock(egress_id="EG_1", file_results=[file_info]),
+            egress_info=MagicMock(
+                egress_id="EG_1",
+                status=lk_api.EgressStatus.EGRESS_COMPLETE,
+                file_results=[file_info],
+            ),
         )
 
         response = self._post_webhook(event)
@@ -118,6 +124,30 @@ class LiveKitWebhookTests(APITestCase):
         self.assertEqual(recording.object_key, "r1/abc.mp4")
         self.assertEqual(recording.duration_seconds, 5.0)
         self.assertEqual(recording.size_bytes, 12345)
+
+    def test_egress_ended_event_but_aborted_marks_failed(self):
+        """The webhook event type is "egress_ended" even when the egress
+        aborted (e.g. an empty room with nothing to record) — only
+        egress_info.status says whether it actually succeeded."""
+        from livekit import api as lk_api
+
+        Recording.objects.create(
+            room="r1", broadcaster_name="Alice", egress_id="EG_9", status="processing"
+        )
+        event = MagicMock(
+            event="egress_ended",
+            egress_info=MagicMock(
+                egress_id="EG_9",
+                status=lk_api.EgressStatus.EGRESS_ABORTED,
+                file_results=[],
+            ),
+        )
+
+        response = self._post_webhook(event)
+        self.assertEqual(response.status_code, 204)
+        recording = Recording.objects.get(egress_id="EG_9")
+        self.assertEqual(recording.status, "failed")
+        self.assertEqual(recording.object_key, "")
 
     def test_egress_failed_marks_failed(self):
         Recording.objects.create(

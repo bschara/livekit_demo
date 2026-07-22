@@ -27,6 +27,17 @@ services:
     container_name: livekit-egress
     restart: unless-stopped
     network_mode: host
+    # Room composite egress renders via headless Chrome, which needs much
+    # more /dev/shm than Docker's 64MB default — too little and Chrome
+    # fails to render, aborting every recording with "Start signal not
+    # received" even though everything else (redis, tracks) is fine.
+    shm_size: "1gb"
+    # Chrome's own sandboxing needs this capability in Docker — without it,
+    # Chrome silently never finishes rendering and egress times out with the
+    # same "Start signal not received" abort. Required per LiveKit's own
+    # deployment docs.
+    cap_add:
+      - SYS_ADMIN
     depends_on:
       - redis
       - livekit
