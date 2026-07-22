@@ -151,3 +151,9 @@ LIVEKIT_API_SECRET = os.environ.get('LIVEKIT_API_SECRET', '')
 LIVEKIT_WS_URL = os.environ.get('LIVEKIT_WS_URL', 'ws://localhost:7880')
 # The Python server SDK talks to LiveKit's REST API over http(s), not ws(s).
 LIVEKIT_HTTP_URL = LIVEKIT_WS_URL.replace('wss://', 'https://').replace('ws://', 'http://')
+
+# MinIO (self-hosted S3-compatible storage) — where recording egress output lands.
+MINIO_ENDPOINT = os.environ.get('MINIO_ENDPOINT', 'http://localhost:9000')
+MINIO_ACCESS_KEY = os.environ.get('MINIO_ACCESS_KEY', 'minioadmin')
+MINIO_SECRET_KEY = os.environ.get('MINIO_SECRET_KEY', '')
+MINIO_BUCKET = os.environ.get('MINIO_BUCKET', 'recordings')

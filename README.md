@@ -48,19 +48,19 @@ Broadcaster browser ──WebRTC──▶  LiveKit SFU (Docker)  ◀──WebRTC
 
 ```
 livekit-demo/
-  docker-compose.yml   # runs livekit/livekit-server
+  docker-compose.yml   # livekit-server, redis, egress, minio, minio-init
   livekit.yaml          # LiveKit server config (port, RTC port range, API keys)
   backend/               # Django REST API
     config/               # settings, urls
-    streaming/             # POST /api/token/, GET /api/rooms/
+    streaming/             # POST /api/token/, GET /api/rooms/, recordings, webhook
   frontend/              # Vite + React app
-    src/pages/             # HomePage, BroadcastPage, WatchPage
+    src/pages/             # HomePage, BroadcastPage, WatchPage, RecordingsPage
     src/lib/api.js          # talks to the Django API
 ```
 
 ## Running it locally
 
-**1. LiveKit server**
+**1. LiveKit server (+ Redis, Egress, MinIO)**
 ```bash
 docker compose up -d
 ```
@@ -68,6 +68,16 @@ Runs LiveKit in a container, config from `livekit.yaml` (signaling on `:7880`,
 RTC media on `:7881` TCP / `50000-50100` UDP). If you edit `livekit.yaml`, run
 `docker compose restart livekit` — LiveKit only reads its config at startup, so
 just leaving the container "up" won't pick up file changes.
+
+This also brings up three more services needed for recording (see
+"Recording broadcasts" below): **Redis** (LiveKit's Egress process only
+talks to the core server over Redis, even single-node), **Egress**
+(`livekit/egress`, records rooms — runs with the same host networking as
+`livekit` since it joins rooms like any other WebRTC client), and **MinIO**
+(self-hosted S3-compatible storage for the recorded files, with a
+`minio-init` one-shot container that creates the `recordings` bucket
+automatically). None of this is required just to broadcast/watch live —
+only for the recording feature.
 
 **2. Django API**
 ```bash
@@ -128,6 +138,23 @@ Pre-demo checklist:
    data) before the actual call — this is the step that catches ICE failures
    before they happen live.
 
+## Recording broadcasts
+
+The broadcaster's page has a **Start recording**/**Stop recording** button.
+It records the full room composite — the broadcaster plus any interacting
+guest tiles, i.e. exactly what a viewer sees — via LiveKit's
+`RoomCompositeEgress`, uploaded to the self-hosted MinIO bucket brought up by
+`docker compose`. Recordings show up on the **Recordings** page (linked from
+the home page) once processing finishes, each playable inline.
+
+Recording is deliberately manual (not automatic on broadcaster join) — you
+decide what's worth keeping. If a broadcaster disconnects without clicking
+**Stop recording**, a `room_finished` LiveKit webhook stops it automatically
+so nothing records indefinitely; either way, the recording only flips to
+"ready" on the Recordings page once LiveKit's `egress_ended` webhook confirms
+the upload actually finished (this happens a few seconds after you click
+Stop, not instantly).
+
 ## Assumptions & known limitations
 
 - **Dev-mode LiveKit keys, no real auth.** `livekit.yaml` ships with a single
@@ -167,10 +194,16 @@ Pre-demo checklist:
   room name (`main-stream`) for simplicity in the demo; it's just a text
   field, so multiple concurrent broadcasts in different rooms already work,
   they're just not surfaced anywhere in the UI.
-- **No persistence.** Django holds no state about streams — "is a room live"
-  is answered by asking LiveKit directly (`GET /api/rooms/`), which keeps the
-  API stateless and trivially horizontally scalable, but means there's no
-  history/analytics of past streams.
+- **No persistence beyond recordings.** Django still holds no state about
+  live streams themselves — "is a room live" is answered by asking LiveKit
+  directly (`GET /api/rooms/`) — but recordings are the one exception, now
+  tracked in a `Recording` model (see "Recording broadcasts" above).
+- **Recording playback has no auth beyond a presigned URL's expiry.**
+  Anyone with a recording's link can watch it until the URL expires (1 hour),
+  same "no real auth" posture as the rest of this POC. There's also no
+  storage retention/cleanup policy for MinIO — recordings accumulate
+  indefinitely; a real version of this would need both a proper auth check
+  on `GET /api/recordings/` and a retention policy for old files.
 
 ## Scaling beyond this POC
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { fetchRooms } from "../lib/api.js";
 
 const DEFAULT_ROOM = "main-stream";
@@ -86,6 +86,11 @@ export default function HomePage() {
           >
             Watch stream
           </button>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <Link className="muted" to="/recordings">
+            View recordings
+          </Link>
         </div>
       </div>
     </div>

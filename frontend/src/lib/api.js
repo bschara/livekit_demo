@@ -19,6 +19,7 @@ async function request(path, options) {
     }
     throw new Error(detail || `${options?.method || "GET"} ${path} failed (${res.status}): ${body}`);
   }
+  if (res.status === 204) return null;
   return res.json();
 }
 
@@ -31,4 +32,22 @@ export function fetchToken({ name, room, role }) {
 
 export function fetchRooms() {
   return request("/api/rooms/");
+}
+
+export function startRecording({ name, room }) {
+  return request("/api/recordings/start/", {
+    method: "POST",
+    body: JSON.stringify({ name, room }),
+  });
+}
+
+export function stopRecording({ egressId }) {
+  return request("/api/recordings/stop/", {
+    method: "POST",
+    body: JSON.stringify({ egress_id: egressId }),
+  });
+}
+
+export function fetchRecordings() {
+  return request("/api/recordings/");
 }

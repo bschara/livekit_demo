@@ -1,14 +1,19 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Track } from "livekit-client";
 import { useRemoteTracks } from "../lib/useRemoteTracks.js";
 import { useLiveKitConnection } from "../lib/useLiveKitConnection.js";
 import { AudioSink, VideoTile } from "../components/MediaTile.jsx";
+import { startRecording, stopRecording } from "../lib/api.js";
 
 export default function BroadcastPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const videoRef = useRef(null);
+  const [recording, setRecording] = useState(false);
+  const [egressId, setEgressId] = useState(null);
+  const [recordingBusy, setRecordingBusy] = useState(false);
+  const [recordingError, setRecordingError] = useState(null);
 
   const { room, status, error, roomRef } = useLiveKitConnection({
     state,
@@ -28,7 +33,28 @@ export default function BroadcastPage() {
 
   const { tracks, participantCount } = useRemoteTracks(room);
 
+  const toggleRecording = async () => {
+    setRecordingBusy(true);
+    setRecordingError(null);
+    try {
+      if (recording) {
+        await stopRecording({ egressId });
+        setRecording(false);
+        setEgressId(null);
+      } else {
+        const res = await startRecording({ name: state?.name, room: state?.room });
+        setEgressId(res.egress_id);
+        setRecording(true);
+      }
+    } catch (err) {
+      setRecordingError(err.message || "Recording action failed");
+    } finally {
+      setRecordingBusy(false);
+    }
+  };
+
   const endStream = () => {
+    if (recording && egressId) stopRecording({ egressId }).catch(() => {});
     roomRef.current?.disconnect();
     navigate("/");
   };
@@ -42,15 +68,24 @@ export default function BroadcastPage() {
     <div className="page">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>Broadcasting to "{state?.room}"</h2>
-        {status === "live" && (
-          <span className="badge badge-live">
-            <span className="dot" />
-            Live &middot; {participantCount} watching
-          </span>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {recording && (
+            <span className="badge badge-live">
+              <span className="dot" />
+              Recording
+            </span>
+          )}
+          {status === "live" && (
+            <span className="badge badge-live">
+              <span className="dot" />
+              Live &middot; {participantCount} watching
+            </span>
+          )}
+        </div>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+      {recordingError && <div className="error-banner">{recordingError}</div>}
 
       <div className="video-tile hero">
         <video ref={videoRef} autoPlay playsInline muted />
@@ -72,7 +107,14 @@ export default function BroadcastPage() {
         <AudioSink key={t.sid} track={t.track} />
       ))}
 
-      <div style={{ marginTop: 20 }}>
+      <div style={{ marginTop: 20, display: "flex", gap: 12 }}>
+        <button
+          className="btn btn-outline"
+          onClick={toggleRecording}
+          disabled={status !== "live" || recordingBusy}
+        >
+          {recording ? "Stop recording" : "Start recording"}
+        </button>
         <button className="btn btn-danger" onClick={endStream} disabled={status === "ended"}>
           End stream
         </button>

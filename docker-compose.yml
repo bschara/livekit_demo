@@ -5,7 +5,67 @@ services:
     command: --config /etc/livekit.yaml
     restart: unless-stopped
     network_mode: host
+    depends_on:
+      - redis
     environment:
       - LIVEKIT_KEYS=${LIVEKIT_KEYS}
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  redis:
+    image: redis:7-alpine
+    container_name: livekit-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  # Egress joins rooms the same way a browser client does (headless Chromium
+  # + WebRTC subscription), so it needs the same host-networking treatment as
+  # `livekit` above for ICE/RTC reachability — see README's NAT-traversal notes.
+  egress:
+    image: livekit/egress:latest
+    container_name: livekit-egress
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - redis
+      - livekit
+    # Config passed inline via env var (not a committed file) so the API
+    # secret never lands in git — same reasoning as LIVEKIT_KEYS above.
+    environment:
+      EGRESS_CONFIG_BODY: |
+        redis:
+          address: localhost:6379
+        api_key: ${LIVEKIT_API_KEY}
+        api_secret: ${LIVEKIT_API_SECRET}
+        ws_url: ws://localhost:7880
+
+  minio:
+    image: minio/minio:latest
+    container_name: livekit-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  # One-shot: creates the "recordings" bucket automatically on `docker compose
+  # up` so there's no manual MinIO setup step. Exits after running.
+  minio-init:
+    image: minio/mc:latest
+    container_name: livekit-minio-init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do sleep 1; done;
+      mc mb --ignore-existing local/recordings;
+      "
+
+volumes:
+  minio-data:

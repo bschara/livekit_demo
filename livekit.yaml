@@ -19,3 +19,20 @@ rtc:
 # Keys are intentionally NOT set here — this file is committed to git.
 # LiveKit reads them from the LIVEKIT_KEYS env var instead (see docker-compose.yml),
 # sourced from a root .env file that is gitignored. See .env.example.
+
+# Needed for the egress service to communicate with this server — see
+# docker-compose.yml's `egress` service and README's recording section.
+redis:
+  address: localhost:6379
+
+# Fired on room/participant/egress lifecycle events; the Django backend uses
+# `egress_ended`/`egress_failed` to learn when a recording has actually
+# finished uploading (Egress confirms this asynchronously, not in the
+# start/stop API response) and `room_finished` as a safety net to stop any
+# recording left running if a broadcaster disconnects without clicking Stop.
+webhook:
+  # The key *name* (not secret) from LIVEKIT_KEYS/LIVEKIT_API_KEY — update
+  # this if you ever rename the key away from the "devkey" default.
+  api_key: devkey
+  urls:
+    - http://localhost:8000/api/webhooks/livekit/
