@@ -1,12 +1,13 @@
 # Copy to /etc/nginx/sites-available/livekit-demo, symlink into sites-enabled,
-# replace APP_DOMAIN and LIVEKIT_DOMAIN below, then run:
-#   sudo certbot --nginx -d APP_DOMAIN -d LIVEKIT_DOMAIN
+# replace APP_DOMAIN, LIVEKIT_DOMAIN and MINIO_DOMAIN below, then run:
+#   sudo certbot --nginx -d APP_DOMAIN -d LIVEKIT_DOMAIN -d MINIO_DOMAIN
 # certbot rewrites these blocks in place to add the TLS (443) config — run it
 # AFTER this file is in place, not before.
 #
 # No real domain? Use sslip.io: if your VPS IP is 203.0.113.5, use
-# app-203-0-113-5.sslip.io and livekit-203-0-113-5.sslip.io — no DNS setup
-# needed, they resolve to that IP automatically.
+# app-203-0-113-5.sslip.io, livekit-203-0-113-5.sslip.io and
+# minio-203-0-113-5.sslip.io — no DNS setup needed, they resolve to that IP
+# automatically.
 
 # Frontend (static build) + Django API
 server {
@@ -46,5 +47,26 @@ server {
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# MinIO (recording playback) — separate (sub)domain so it gets its own TLS
+# cert, same reasoning as LIVEKIT_DOMAIN above. Needed because presigned
+# playback URLs are loaded directly by the <video> tag on an HTTPS page;
+# browsers block that as mixed content if it points at plain http://.
+# Presigned URLs are signed independent of Host (SigV2), so proxying them
+# through here doesn't invalidate the signature — just don't rewrite the
+# path or query string.
+server {
+    listen 80;
+    server_name MINIO_DOMAIN;
+
+    location / {
+        proxy_pass http://127.0.0.1:9000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        # Video seeking relies on Range requests reaching MinIO directly
+        # rather than nginx buffering the whole file first.
+        proxy_buffering off;
     }
 }
