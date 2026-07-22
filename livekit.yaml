@@ -11,11 +11,14 @@ rtc:
   # when the host running docker-compose genuinely has a reachable public IP
   # (or port-forwarded RTC ports) for remote viewers to reach it directly.
   use_external_ip: false
-  # Explicit override so other devices on the same LAN (e.g. a phone) get an
-  # ICE candidate they can actually reach — without this, LiveKit falls back
-  # to the Docker bridge's internal IP, which only this host can reach.
-  # Update this if the host's LAN IP changes (check with `hostname -I`).
-  node_ip: 192.168.29.8
+  # node_ip is deliberately NOT set here. It's the one setting that must
+  # differ per host (LAN IP locally, public IP on a VPS), and — confirmed
+  # empirically — an explicit value in this file always wins over the
+  # NODE_IP env var/--node-ip flag, so it can't be committed here without
+  # breaking every other host. Set NODE_IP in that host's own gitignored
+  # .env instead (see docker-compose.yml/.env.example). Without it, LiveKit
+  # falls back to the Docker bridge's internal IP, which only this host
+  # can reach.
 # Keys are intentionally NOT set here — this file is committed to git.
 # LiveKit reads them from the LIVEKIT_KEYS env var instead (see docker-compose.yml),
 # sourced from a root .env file that is gitignored. See .env.example.
