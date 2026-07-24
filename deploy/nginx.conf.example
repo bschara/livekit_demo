@@ -35,7 +35,7 @@ server {
 
 # LiveKit signaling (WebSocket) — separate (sub)domain so it gets its own TLS cert.
 # Only the signaling connection is proxied here; RTC media (7881/tcp,
-# 50000-60000/udp) still needs to be reachable directly, not through nginx.
+# 50000-50100/udp) still needs to be reachable directly, not through nginx.
 server {
     listen 80;
     server_name LIVEKIT_DOMAIN;

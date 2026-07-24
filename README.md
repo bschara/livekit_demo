@@ -103,43 +103,6 @@ Open `http://localhost:5173`, enter a name, click **Go live** in one tab and
 **Watch stream** in as many others as you like — every viewer subscribes to
 the same broadcaster through the LiveKit SFU.
 
-## Exposing it for a live demo (tunnel, no cloud VM)
-
-`livekit.yaml` ships with `rtc.use_external_ip: false` — LiveKit hands out
-its own local address as the ICE candidate for media, which is what makes
-same-machine/same-LAN testing work reliably. **This setting must change before
-a demo with viewers on other networks**, or every one of them will hit the
-same "could not establish pc connection" ICE failure documented below: set it
-to `true` *and* make sure the RTC ports (`7881/tcp`, `50000-50100/udp`) are
-actually reachable from the internet — either the demo machine has a real
-public IP, or its router has those ports forwarded to it. STUN alone doesn't
-create that inbound path; it only reports what the outside world sees, so if
-nothing is actually forwarding traffic in, ICE fails exactly the way it did
-in local testing before this was caught.
-
-With that sorted, everything runs on one laptop and gets exposed to the
-internet via a tunnel rather than deployed to a VM:
-
-```bash
-ngrok http 8000     # Django API (and could also front the built React app)
-ngrok http 5173     # React dev server, for viewers to open in a browser
-```
-
-LiveKit's signaling port (`7880`) doesn't need its own tunnel: the browser
-connects to LiveKit for signaling using the `ws_url` the Django API returns
-(`ws://<your-reachable-public-IP>:7880` — set `LIVEKIT_WS_URL` in
-`backend/.env` accordingly before the demo), and the actual audio/video (RTP)
-negotiates directly between each browser and the LiveKit server over the
-forwarded RTC ports.
-
-Pre-demo checklist:
-1. Open 4+ local browser tabs (no tunnel) and confirm one broadcaster + several
-   simultaneous viewers all work.
-2. Flip `use_external_ip` to `true`, confirm port forwarding, then do one real
-   test from a device on a **different** network (e.g. a phone on cellular
-   data) before the actual call — this is the step that catches ICE failures
-   before they happen live.
-
 ## Recording broadcasts
 
 The broadcaster's page has a **Start recording**/**Stop recording** button.
@@ -159,15 +122,35 @@ Stop, not instantly).
 
 ## Assumptions & known limitations
 
-- **Dev-mode LiveKit keys, no real auth.** `livekit.yaml` ships with a single
-  hardcoded API key/secret pair and Django's `/api/token/` endpoint will mint
-  a token for anyone who calls it with any name — there's no login system.
-  Fine for a POC demoed to a known audience; the first thing to fix before
-  this went further would be tying token issuance to real Django user
-  accounts/sessions.
+- **No real auth — deliberately, not an oversight.** `livekit.yaml` ships with
+  a single hardcoded API key/secret pair and Django's `/api/token/` endpoint
+  will mint a token for anyone who calls it with any name — there's no login
+  system. This POC is scoped to proving the broadcast/multi-viewer mechanics
+  (LiveKit SFU, token issuance, recording), demoed live to a known, trusted
+  audience — adding a full auth layer wouldn't have demonstrated anything
+  extra about real-time communication and would have spent time better used
+  elsewhere. The first thing to add before this went further would be tying
+  token issuance to real Django user accounts/sessions, so `canPublish` /
+  identity aren't self-asserted by whoever calls the API.
 - **NAT traversal relies on STUN, not TURN — and STUN needs a real inbound
-  path to work at all.** Hit this directly while testing: with
-  `use_external_ip: true`, LiveKit advertised a STUN-discovered "external" IP
+  path to work at all.**
+  ([NAT](https://en.wikipedia.org/wiki/Network_address_translation), STUN,
+  TURN, and ICE, briefly: most devices sit behind **NAT**, so two browsers
+  can't just dial each other directly — neither has a stable public address.
+  **STUN** fixes this cheaply: a peer asks a public STUN server "what address
+  do you see me as?" and uses that reflected address (a "server-reflexive
+  candidate") to receive traffic — but it only works if the network actually
+  routes inbound traffic back to that address; STUN can report a reflection,
+  it can't open a door that isn't there. **TURN** is the fallback for when it
+  can't: both peers connect *outbound* to a TURN relay (which is always
+  possible) and it forwards every packet between them, trading a bit of
+  latency for guaranteed connectivity even through symmetric NATs or
+  restrictive firewalls. **ICE** is the umbrella algorithm tying this
+  together — each side gathers every candidate (local, STUN-reflexive, and
+  TURN-relay if configured), exchanges them over the signaling channel
+  (LiveKit's WebSocket here), tries every pair, and uses the first one that
+  actually connects, preferring direct over relayed.) Hit this directly while
+  testing: with `use_external_ip: true`, LiveKit advertised a STUN-discovered "external" IP
   that was outbound-reachable only (no inbound route back into the sandboxed
   host), so *every* ICE candidate pair failed and the browser never got past
   "connecting" — camera/mic were never even requested, since `room.connect()`
@@ -184,6 +167,17 @@ Stop, not instantly).
   LiveKit's built-in TURN server on port 443/TCP, which relays media over the
   one port that's essentially always reachable, at the cost of media taking a
   relayed path instead of a direct one.
+- **Widening the RTC UDP port range once crashed the VPS by exhausting RAM.**
+  The port range was originally published via Docker's `-p` flag; widening it
+  to `50000-60000` (~10,001 ports) spawned one `docker-proxy` subprocess per
+  published port — roughly 10,000 processes on every container start,
+  exhausting host memory/PIDs and crashing the instance. Docker's
+  userland-proxy model creates a subprocess per published port, which is fine
+  for a handful of ports but catastrophic for a 10,000-port UDP range. Fixed
+  by switching the `livekit` (and `egress`) services to `network_mode: host`
+  in `docker-compose.yml`, which binds directly to the host's network stack
+  with no per-port proxy at all (see commit `1a50f1b`); the committed range
+  is now narrower (`50000-50100`) for local dev, independent of that fix.
 - **Any viewer can publish, with no moderation.** Turning on camera/mic is a
   client-side toggle with no approval step — anyone who joins the room can
   interact, and there's no mute-others or remove-participant control on the
@@ -221,6 +215,23 @@ Stop, not instantly).
   latency (seconds instead of sub-second) for near-unlimited viewer fan-out.
 - **Django API is already stateless**, so it scales horizontally behind a load
   balancer independent of the LiveKit tier without any changes.
+- **WSGI, not ASGI, and that's deliberate.** The Django API runs under WSGI
+  (`gunicorn config.wsgi:application` — see `deploy/livekit-backend.service`)
+  even though it calls an async-only client (`livekit-api`'s `LiveKitAPI`,
+  built on `aiohttp`) via `asyncio.run()` inside each sync view. That's not an
+  oversight: Django never sits in the media/signaling path (browsers talk to
+  LiveKit directly over WebRTC), so the API only ever handles short REST
+  calls — issuing JWTs, listing rooms, starting/stopping egress — not
+  high-concurrency or long-lived connections. DRF's `APIView` also doesn't
+  support `async def` handlers natively (`dispatch()` calls the handler
+  without awaiting it), so async views would require dropping to plain
+  Django views or adding a third-party layer like `adrf`. If this API ever
+  needed to sustain heavy concurrent traffic to LiveKit's HTTP API, the move
+  would be ASGI (uvicorn/daphne) + `adrf`, so each request's worker thread is
+  freed during the LiveKit round-trip instead of blocking on it — but at this
+  POC's traffic scale, that concurrency gain doesn't exist to capture, and
+  the actual viewer-scaling story is LiveKit's SFU/clustering above, not
+  Django's request-serving model.
 
 ## Enhancements if this became a real product
 

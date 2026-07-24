@@ -30,3 +30,5 @@ frontend/.env
 # Local-only notes / docs, not for the repo
 DEMO_BOTTLENECKS.txt
 livekit-evaluation.docx
+ASSUMPTIONS_AND_CHALLENGES.txt
+DEMO_PLAN.txt
