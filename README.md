@@ -103,6 +103,28 @@ Open `http://localhost:5173`, enter a name, click **Go live** in one tab and
 **Watch stream** in as many others as you like — every viewer subscribes to
 the same broadcaster through the LiveKit SFU.
 
+## Deployment
+
+The live instance linked at the top runs on a single VPS, not a laptop/tunnel:
+
+- **Docker Compose** brings up the same `livekit`/`redis`/`egress`/`minio`
+  stack as local dev. `livekit` and `egress` run with `network_mode: host` so
+  RTC ports bind directly to the VPS's network stack (see the docker-proxy/RAM
+  note above) — `use_external_ip: true` in `livekit.yaml` so LiveKit
+  advertises the VPS's real public IP as its ICE candidate.
+- **MinIO** stores recordings, reachable through its own subdomain in nginx
+  so presigned playback URLs load over HTTPS without a mixed-content block
+  (see `deploy/nginx.conf.example`).
+- **Django** runs under gunicorn as a systemd service
+  (`deploy/livekit-backend.service`), not `manage.py runserver`.
+- **nginx** reverse-proxies three (sub)domains onto that stack — the built
+  frontend + Django API, LiveKit's WebSocket signaling, and MinIO — each
+  getting its own certbot-issued TLS cert (`deploy/nginx.conf.example` has
+  the full setup, including sslip.io as a no-DNS-needed option). RTC media
+  itself (`7881/tcp`, `50000-50100/udp`) isn't proxied through nginx at all —
+  it needs to be reachable directly, so those ports are opened on the VPS's
+  firewall/security group separately.
+
 ## Recording broadcasts
 
 The broadcaster's page has a **Start recording**/**Stop recording** button.
