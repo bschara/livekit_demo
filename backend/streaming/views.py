@@ -34,6 +34,14 @@ def _s3_client():
     )
 
 
+def _livekit_api():
+    return api.LiveKitAPI(
+        settings.LIVEKIT_HTTP_URL,
+        settings.LIVEKIT_API_KEY,
+        settings.LIVEKIT_API_SECRET,
+    )
+
+
 class TokenView(APIView):
     """Mint a short-lived, room-scoped LiveKit access token.
 
@@ -90,11 +98,7 @@ class TokenView(APIView):
 
     @staticmethod
     async def _room_has_broadcaster(room_name):
-        async with api.LiveKitAPI(
-            settings.LIVEKIT_HTTP_URL,
-            settings.LIVEKIT_API_KEY,
-            settings.LIVEKIT_API_SECRET,
-        ) as lk:
+        async with _livekit_api() as lk:
             listed = await lk.room.list_rooms(api.ListRoomsRequest(names=[room_name]))
             if not listed.rooms:
                 return False
@@ -121,11 +125,7 @@ class RoomListView(APIView):
 
     @staticmethod
     async def _fetch_rooms():
-        async with api.LiveKitAPI(
-            settings.LIVEKIT_HTTP_URL,
-            settings.LIVEKIT_API_KEY,
-            settings.LIVEKIT_API_SECRET,
-        ) as lk:
+        async with _livekit_api() as lk:
             listed = await lk.room.list_rooms(api.ListRoomsRequest())
             summaries = []
             for room in listed.rooms:
@@ -175,11 +175,7 @@ class RecordingStartView(APIView):
 
     @staticmethod
     async def _start(room_name):
-        async with api.LiveKitAPI(
-            settings.LIVEKIT_HTTP_URL,
-            settings.LIVEKIT_API_KEY,
-            settings.LIVEKIT_API_SECRET,
-        ) as lk:
+        async with _livekit_api() as lk:
             object_key = f"{room_name}/{uuid.uuid4().hex}.mp4"
             egress_request = api.RoomCompositeEgressRequest(
                 room_name=room_name,
@@ -216,11 +212,7 @@ class RecordingStopView(APIView):
 
     @staticmethod
     async def _stop(egress_id):
-        async with api.LiveKitAPI(
-            settings.LIVEKIT_HTTP_URL,
-            settings.LIVEKIT_API_KEY,
-            settings.LIVEKIT_API_SECRET,
-        ) as lk:
+        async with _livekit_api() as lk:
             await lk.egress.stop_egress(api.StopEgressRequest(egress_id=egress_id))
 
 
